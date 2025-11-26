@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from audio_queue import tts_queue
 from tts_handler import generate_speech, cleanup_all
+from user_prefs import user_prefs, VOICES
 
 # Load environment variables
 load_dotenv()
@@ -110,6 +111,25 @@ async def shutup(ctx: commands.Context):
     await ctx.send("🤐 Queue cleared!")
 
 
+@bot.command(name="voice")
+async def voice(ctx: commands.Context, voice_name: str | None = None):
+    """Set your TTS voice. Usage: !voice <name> or !voice to see options."""
+    
+    current = user_prefs.get_voice(ctx.author.id)
+    
+    if voice_name is None:
+        voices_list = ", ".join(f"**{v}**" if v == current else v for v in VOICES)
+        await ctx.send(f"Available voices: {voices_list}\nUsage: `!voice <name>`")
+        return
+    
+    voice_name = voice_name.lower()
+    
+    if user_prefs.set_voice(ctx.author.id, voice_name):
+        await ctx.send(f"✓ Voice set to **{voice_name}**")
+    else:
+        await ctx.send(f"❌ Unknown voice. Options: {', '.join(VOICES)}")
+
+
 @bot.event
 async def on_message(message: discord.Message):
     """Process incoming messages for TTS."""
@@ -138,8 +158,9 @@ async def on_message(message: discord.Message):
     if not message.content.strip():
         return
     
-    # Generate TTS audio
-    audio_path = await generate_speech(message.content)
+    # Generate TTS audio with user's preferred voice
+    voice = user_prefs.get_voice(message.author.id)
+    audio_path = await generate_speech(message.content, voice=voice)
     
     if audio_path:
         await tts_queue.add(audio_path, voice_client)

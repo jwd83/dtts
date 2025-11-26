@@ -76,12 +76,13 @@ def validate_text(text: str) -> tuple[bool, str]:
     return True, cleaned
 
 
-async def generate_speech(text: str, filename: str | None = None) -> str | None:
+async def generate_speech(text: str, voice: str = VOICE, filename: str | None = None) -> str | None:
     """
     Generate speech audio from text using OpenAI's TTS API.
     
     Args:
         text: The text to convert to speech
+        voice: The voice to use (alloy, echo, fable, onyx, nova, shimmer)
         filename: Optional custom filename (without extension)
     
     Returns:
@@ -105,7 +106,7 @@ async def generate_speech(text: str, filename: str | None = None) -> str | None:
     try:
         response = client.audio.speech.create(
             model=MODEL,
-            voice=VOICE,
+            voice=voice,
             input=cleaned_text,
         )
         
