@@ -27,9 +27,6 @@ intents.voice_states = True     # Required for voice channel events
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Track which text channel the bot should listen to per guild
-# Maps guild_id -> channel_id
-active_channels: dict[int, int] = {}
 
 
 @bot.event
@@ -67,10 +64,7 @@ async def join(ctx: commands.Context):
             await ctx.send(f"❌ Failed to join: {e}")
             return
     
-    # Set the active text channel for this guild
-    active_channels[ctx.guild.id] = ctx.channel.id
-    
-    await ctx.send(f"✓ Joined **{channel.name}** — I'll read messages from this channel!")
+    await ctx.send(f"✓ Joined **{channel.name}** — I'll read messages from all text channels!")
 
 
 @bot.command(name="leave")
@@ -84,9 +78,6 @@ async def leave(ctx: commands.Context):
     # Clear the queue and disconnect
     await tts_queue.stop(ctx.voice_client)
     await ctx.voice_client.disconnect()
-    
-    # Remove active channel tracking
-    active_channels.pop(ctx.guild.id, None)
     
     await ctx.send("👋 Left the voice channel!")
 
@@ -139,13 +130,6 @@ async def on_message(message: discord.Message):
     if not voice_client or not voice_client.is_connected():
         return
     
-    # Check if this is the active text channel for TTS
-    if message.guild.id not in active_channels:
-        return
-    
-    if message.channel.id != active_channels[message.guild.id]:
-        return
-    
     # Ignore command messages
     if message.content.startswith("!"):
         return
@@ -176,8 +160,6 @@ async def on_voice_state_update(
     # Bot was disconnected from voice
     if before.channel and not after.channel:
         # Clean up
-        guild_id = before.channel.guild.id
-        active_channels.pop(guild_id, None)
         await tts_queue.clear()
 
 
