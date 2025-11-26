@@ -39,50 +39,54 @@ class TTSQueue:
             
             # Start playback if nothing is currently playing
             if not voice_client.is_playing() and not voice_client.is_paused():
-                await self._play_next(voice_client)
+                self._play_next_locked(voice_client)
     
-    async def _play_next(self, voice_client: discord.VoiceClient) -> None:
+    def _play_next_locked(self, voice_client: discord.VoiceClient) -> None:
         """
-        Play the next file in the queue.
-        Called internally after adding to queue or when current audio finishes.
+        Play the next file in the queue. Must be called with lock held.
         """
         if not self._queue:
             self._current_file = None
             return
         
         if not voice_client.is_connected():
-            # Voice client disconnected, clear queue
-            await self.clear()
+            return
+        
+        # Don't start if already playing
+        if voice_client.is_playing() or voice_client.is_paused():
             return
         
         filepath = self._queue.popleft()
         self._current_file = filepath
         
+        # Create callback for when audio finishes
+        def after_playing(error):
+            if error:
+                print(f"Playback error: {error}")
+            
+            # Clean up the played file
+            cleanup_file(filepath)
+            
+            # Schedule next track with lock
+            asyncio.run_coroutine_threadsafe(
+                self._on_playback_finished(voice_client),
+                voice_client.loop
+            )
+        
         try:
-            # Create audio source with FFmpeg using Opus encoding (Discord native)
-            source = await discord.FFmpegOpusAudio.from_probe(filepath)
-            
-            # Create callback for when audio finishes
-            def after_playing(error):
-                if error:
-                    print(f"Playback error: {error}")
-                
-                # Clean up the played file
-                cleanup_file(filepath)
-                
-                # Schedule next track (must use asyncio since callback is sync)
-                asyncio.run_coroutine_threadsafe(
-                    self._play_next(voice_client),
-                    voice_client.loop
-                )
-            
+            source = discord.FFmpegOpusAudio(filepath)
             voice_client.play(source, after=after_playing)
-            
         except Exception as e:
             print(f"Error playing audio: {e}")
             cleanup_file(filepath)
-            # Try to play next in queue
-            await self._play_next(voice_client)
+            self._play_next_locked(voice_client)
+    
+    async def _on_playback_finished(self, voice_client: discord.VoiceClient) -> None:
+        """
+        Called when playback finishes to start the next track.
+        """
+        async with self._lock:
+            self._play_next_locked(voice_client)
     
     async def skip(self, voice_client: discord.VoiceClient) -> bool:
         """
