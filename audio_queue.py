@@ -59,14 +59,8 @@ class TTSQueue:
         self._current_file = filepath
         
         try:
-            # Create audio source with FFmpeg
-            source = discord.FFmpegPCMAudio(
-                filepath,
-                options="-loglevel quiet"
-            )
-            
-            # Apply volume transformation (optional, default 1.0)
-            source = discord.PCMVolumeTransformer(source, volume=1.0)
+            # Create audio source with FFmpeg using Opus encoding (Discord native)
+            source = await discord.FFmpegOpusAudio.from_probe(filepath)
             
             # Create callback for when audio finishes
             def after_playing(error):
