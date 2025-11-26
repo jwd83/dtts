@@ -1,0 +1,11 @@
+[project]
+name = "dtts"
+version = "0.1.0"
+description = "Discord TTS bot using OpenAI neural text-to-speech"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "discord-py[voice]>=2.6.4",
+    "openai>=2.8.1",
+    "python-dotenv>=1.2.1",
+]
