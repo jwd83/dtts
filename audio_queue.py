@@ -21,6 +21,7 @@ class TTSQueue:
         self._queue: deque[str] = deque()
         self._lock = asyncio.Lock()
         self._current_file: str | None = None
+        self._last_speaker_id: int | None = None
     
     @property
     def is_empty(self) -> bool:
@@ -30,12 +31,14 @@ class TTSQueue:
     def size(self) -> int:
         return len(self._queue)
     
-    async def add(self, filepath: str, voice_client: discord.VoiceClient) -> None:
+    async def add(self, filepath: str, voice_client: discord.VoiceClient, speaker_id: int | None = None) -> None:
         """
         Add an audio file to the queue and start playback if not already playing.
         """
         async with self._lock:
             self._queue.append(filepath)
+            if speaker_id is not None:
+                self._last_speaker_id = speaker_id
             
             # Start playback if nothing is currently playing
             if not voice_client.is_playing() and not voice_client.is_paused():
@@ -111,7 +114,14 @@ class TTSQueue:
                 filepath = self._queue.popleft()
                 cleanup_file(filepath)
             
+            self._last_speaker_id = None
             return count
+    
+    def should_announce_speaker(self, speaker_id: int) -> bool:
+        """
+        Check if we should announce this speaker (different from last).
+        """
+        return self._last_speaker_id != speaker_id
     
     async def stop(self, voice_client: discord.VoiceClient) -> None:
         """

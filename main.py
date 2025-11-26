@@ -158,12 +158,20 @@ async def on_message(message: discord.Message):
     if not message.content.strip():
         return
     
+    # Prepend "username says" if different speaker
+    text = message.content
+    speaker_id = message.author.id
+    
+    if tts_queue.should_announce_speaker(speaker_id):
+        display_name = message.author.display_name
+        text = f"{display_name} says: {text}"
+    
     # Generate TTS audio with user's preferred voice
-    voice = user_prefs.get_voice(message.author.id)
-    audio_path = await generate_speech(message.content, voice=voice)
+    voice = user_prefs.get_voice(speaker_id)
+    audio_path = await generate_speech(text, voice=voice)
     
     if audio_path:
-        await tts_queue.add(audio_path, voice_client)
+        await tts_queue.add(audio_path, voice_client, speaker_id=speaker_id)
 
 
 @bot.event
