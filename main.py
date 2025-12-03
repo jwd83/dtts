@@ -35,6 +35,20 @@ async def on_ready():
     print(f"✓ Logged in as {bot.user}")
     print(f"✓ Connected to {len(bot.guilds)} guild(s)")
     
+    # Generate invite link
+    permissions = discord.Permissions(
+        connect=True,
+        speak=True,
+        read_messages=True,
+        send_messages=True,
+    )
+    invite_url = discord.utils.oauth_url(
+        bot.user.id,
+        permissions=permissions,
+        scopes=["bot", "applications.commands"]
+    )
+    print(f"\n📎 Invite link:\n{invite_url}\n")
+    
     # Cleanup any leftover temp files from previous sessions
     cleanup_all()
 
