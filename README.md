@@ -4,10 +4,12 @@ A Discord bot that reads text messages aloud in voice channels using OpenAI's ne
 
 ## Features
 
-- `!join` - Bot joins your voice channel and listens to the text channel
+- `!join` - Bot joins your voice channel and listens to all text channels
 - `!leave` - Bot leaves the voice channel
 - `!skip` - Skip the current message being read
 - `!shutup` / `!stop` / `!clear` - Stop playback and clear the queue
+- `!voice` - Set your preferred TTS voice (per-user preference)
+- Speaker announcements (e.g., "Alice says: hello") when different users speak
 
 ## Prerequisites
 
@@ -23,7 +25,7 @@ A Discord bot that reads text messages aloud in voice channels using OpenAI's ne
    ```bash
    # macOS
    brew install ffmpeg
-   
+
    # Ubuntu/Debian
    sudo apt install ffmpeg
    ```
@@ -34,9 +36,10 @@ A Discord bot that reads text messages aloud in voice channels using OpenAI's ne
    ```
 
 3. **Configure environment variables**:
+   Create a `.env` file with the following:
    ```bash
-   cp .env.example .env
-   # Edit .env with your tokens
+   DISCORD_TOKEN=your_discord_bot_token_here
+   OPENAI_API_KEY=your_openai_api_key_here
    ```
 
 4. **Discord Bot Setup**:
@@ -44,7 +47,7 @@ A Discord bot that reads text messages aloud in voice channels using OpenAI's ne
    - Create a new application and bot
    - Enable **Message Content Intent** in the Bot settings
    - Copy the bot token to your `.env` file
-   - Invite the bot with these permissions: `Connect`, `Speak`, `Read Messages/View Channels`
+   - Invite the bot with these permissions: `Connect`, `Speak`, `Read Messages/View Channels`, `Send Messages`
 
 ## Running
 
@@ -52,17 +55,32 @@ A Discord bot that reads text messages aloud in voice channels using OpenAI's ne
 uv run main.py
 ```
 
+On first run, an invite link will be printed to the console for easy bot invitation.
+
 ## Usage
 
 1. Join a voice channel in Discord
-2. In a text channel, type `!join`
-3. Send messages in that text channel — the bot will read them aloud
+2. In any text channel, type `!join`
+3. Send messages — the bot will read them aloud
 4. Use `!leave` when done
 
-## Configuration
+## Commands
 
-Edit `tts_handler.py` to customize:
+| Command | Description |
+|---------|-------------|
+| `!join` | Join your voice channel |
+| `!leave` | Leave the voice channel |
+| `!skip` | Skip current message |
+| `!shutup` / `!stop` / `!clear` | Stop playback and clear queue |
+| `!voice [name]` | Set your voice (or list options) |
 
-- `MAX_CHARS` - Maximum characters per message (default: 200)
-- `VOICE` - OpenAI voice: `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`
-- `MODEL` - `tts-1` (faster) or `tts-1-hd` (higher quality)
+## Available Voices
+
+- `alloy` (default)
+- `echo`
+- `fable`
+- `onyx`
+- `nova`
+- `shimmer`
+
+Voice preferences are saved per-user and persist across sessions.

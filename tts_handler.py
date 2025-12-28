@@ -5,6 +5,7 @@ TTS Handler - Interfaces with OpenAI's Text-to-Speech API
 import os
 import re
 import tempfile
+import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -95,12 +96,11 @@ async def generate_speech(text: str, voice: str = VOICE, filename: str | None = 
         return None
     
     cleaned_text = result
-    
+
     # Generate unique filename if not provided
     if filename is None:
-        import uuid
         filename = f"tts_{uuid.uuid4().hex[:8]}"
-    
+
     output_path = TEMP_DIR / f"{filename}.mp3"
     
     try:

@@ -9,7 +9,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
-from audio_queue import tts_queue
+from audio_queue import tts_queue_manager
 from tts_handler import generate_speech, cleanup_all
 from user_prefs import user_prefs, VOICES
 
@@ -85,28 +85,31 @@ async def join(ctx: commands.Context):
 @bot.command(name="leave")
 async def leave(ctx: commands.Context):
     """Leave the voice channel."""
-    
+
     if not ctx.voice_client:
         await ctx.send("❌ I'm not in a voice channel!")
         return
-    
+
     # Clear the queue and disconnect
-    await tts_queue.stop(ctx.voice_client)
+    guild_id = ctx.guild.id if ctx.guild else 0
+    await tts_queue_manager.stop(guild_id, ctx.voice_client)
     await ctx.voice_client.disconnect()
-    
+
     await ctx.send("👋 Left the voice channel!")
 
 
 @bot.command(name="skip")
 async def skip(ctx: commands.Context):
     """Skip the currently playing message."""
-    
+
     if not ctx.voice_client:
         await ctx.send("❌ I'm not in a voice channel!")
         return
-    
-    skipped = await tts_queue.skip(ctx.voice_client)
-    
+
+    guild_id = ctx.guild.id if ctx.guild else 0
+    queue = tts_queue_manager.get_queue(guild_id)
+    skipped = await queue.skip(ctx.voice_client)
+
     if skipped:
         await ctx.send("⏭️ Skipped!")
     else:
@@ -116,12 +119,14 @@ async def skip(ctx: commands.Context):
 @bot.command(name="shutup", aliases=["clear", "stop"])
 async def shutup(ctx: commands.Context):
     """Stop playback and clear the queue."""
-    
+
     if not ctx.voice_client:
         await ctx.send("❌ I'm not in a voice channel!")
         return
-    
-    await tts_queue.stop(ctx.voice_client)
+
+    guild_id = ctx.guild.id if ctx.guild else 0
+    queue = tts_queue_manager.get_queue(guild_id)
+    await queue.stop(ctx.voice_client)
     await ctx.send("🤐 Queue cleared!")
 
 
@@ -147,45 +152,47 @@ async def voice(ctx: commands.Context, voice_name: str | None = None):
 @bot.event
 async def on_message(message: discord.Message):
     """Process incoming messages for TTS."""
-    
+
     # Always process commands first
     await bot.process_commands(message)
-    
+
     # Ignore messages from bots (including self)
     if message.author.bot:
         return
-    
+
     # Ignore if no guild (DMs)
     if not message.guild:
         return
-    
+
     # Check if bot is in a voice channel in this guild
     voice_client = message.guild.voice_client
     if not voice_client or not voice_client.is_connected():
         return
-    
+
     # Ignore command messages
     if message.content.startswith("!"):
         return
-    
+
     # Ignore empty messages (e.g., image-only)
     if not message.content.strip():
         return
-    
+
     # Prepend "username says" if different speaker
     text = message.content
     speaker_id = message.author.id
-    
-    if tts_queue.should_announce_speaker(speaker_id):
+    guild_id = message.guild.id
+
+    queue = tts_queue_manager.get_queue(guild_id)
+    if queue.should_announce_speaker(speaker_id):
         display_name = message.author.display_name
         text = f"{display_name} says: {text}"
-    
+
     # Generate TTS audio with user's preferred voice
     voice = user_prefs.get_voice(speaker_id)
     audio_path = await generate_speech(text, voice=voice)
-    
+
     if audio_path:
-        await tts_queue.add(audio_path, voice_client, speaker_id=speaker_id)
+        await queue.add(audio_path, voice_client, speaker_id=speaker_id)
 
 
 @bot.event
@@ -195,15 +202,16 @@ async def on_voice_state_update(
     after: discord.VoiceState
 ):
     """Handle voice state changes (e.g., bot gets disconnected)."""
-    
+
     # Check if it's the bot that changed state
     if member != bot.user:
         return
-    
+
     # Bot was disconnected from voice
     if before.channel and not after.channel:
-        # Clean up
-        await tts_queue.clear()
+        # Clean up - clear the queue for this guild
+        guild_id = member.guild.id if member.guild else 0
+        await tts_queue_manager.clear(guild_id)
 
 
 # Error handling
